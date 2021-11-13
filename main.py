@@ -1,4 +1,11 @@
 import streamlit as st
+# EDA pkgs
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use("Agg")
+from wordcloud import WordCloud,STOPWORDS,ImageColorGenerator
+
 # db
 import sqlite3
 
@@ -26,6 +33,19 @@ def get_blog_by_title(title):
     data = cur.fetchall()
     return data
 
+def get_blog_by_author(author):
+    cur.execute('SELECT * FROM blogtable WHERE title = "{}"'.format(author))
+    data = cur.fetchall()
+    return data
+
+def delete_data(title):
+    cur.execute('DELETE FROM blogtable WHERE title = "{}"'.format(title))
+    con.commit()
+
+def readingTime(mytext):
+    total_words = len([token for token in mytext.split(" ")])
+    estimatedTime = total_words/200.0
+    return estimatedTime
 
 # Layout templates
 title_Temp = """"
@@ -96,6 +116,7 @@ def main():
             b_title = i[1]
             b_article = i[2]
             b_post_date = i[3]
+            st.text("Reading Time: {}".format(readingTime(b_article)))
             st.markdown(head_message_temp.format(b_title,b_author,b_article,b_post_date), unsafe_allow_html=True)
             st.markdown(full_message_temp.format(b_title,b_author,b_article,b_post_date), unsafe_allow_html=True)
 
@@ -122,10 +143,59 @@ def main():
         elif search_choice == "author":
             article_result = get_blog_by_author(searcn_term)
 
-
+        for i in article_result:
+            b_author = i[0]
+            b_title = i[1]
+            b_article = i[2]
+            b_post_date = i[3]
+            st.text("Reading Time: {}".format(readingTime(b_article)))
+            st.markdown(head_message_temp.format(b_title,b_author,b_post_date), unsafe_allow_html=True)
+            st.markdown(full_message_temp.format(b_article), unsafe_allow_html=True)
 
     elif choice == "Manage":
         st.subheader("Manage articles")
+
+        result = view_all_notes()
+        clean_db = pd.DataFrame(result, columns=["Authot","Title","Articles","Post Date"])
+        st.dataframe(clean_db)
+
+        unique_titles = [i[0] for i in view_all_titles() ]
+        delete_blog_by_title = st.selectbox("Unique Title", unique_titles)
+
+        if st.button("Delete"):
+            delete_data(delete_blog_by_title)
+            st.warning("Deleted: '{}'".format(delete_blog_by_title))
+
+        if st.checkbox("Metrics"):
+            new_df = clean_db
+            new_df['Lenght'] = new_df['Articles'].str.len() 
+            st.dataframe(new_df)
+
+            st.subheader("Author Stats")
+            new_df["Author"].value_counts().plot(kind='bar')
+            st.pyplot()
+
+            st.subheader("Author Stats")
+            new_df["Author"].value_Counts().plot.pie()
+            st.pyplot()
+        
+        if st.checkbox("Word Cloud"):
+            st.subheader("Generate Word Cloud")
+            text = new_df['Articles'].iloc
+            wordcloud = WordCloud().generate(text)
+            plt.imshow(wordcloud, interpolation='bilinear')  
+            plt.axis('off')
+            st.pyplot()
+        
+        if st.checkout("BarH Plot"):
+            st.subheader("Lenght of Articles")
+            new_df = clean_db
+            new_df['Leght'] = new_df['Articles'].str.len()
+            barh_plot = new_df.plot.barh(x='Author', y='Length',figsize=(20,10))
+            st.pyplot()
+
+
+
 
 if '__name__' == '__main__'_
     main()
